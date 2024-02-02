@@ -1,0 +1,102 @@
+# odszumianie obrazu kolorowego za pomocą trzech transformacji Fouriera, po jednej na każdy kanał obrazu + Porównanie odszumiania z innymi metodami (odszumianiem poprzez rozmycie
+Gaussowskie)
+
+import cv2
+import numpy as np
+from matplotlib import pyplot as plt
+
+def denoise_channel(channel):
+    # Wykonaj transformatę Fouriera
+    f_transform = np.fft.fft2(channel)
+    f_transform_shifted = np.fft.fftshift(f_transform)
+
+    # Wyzeruj niskie częstotliwości (szumy)
+    rows, cols = channel.shape
+    crow, ccol = rows // 2, cols // 2
+    r_mask = 30  # Promień maski, który będzie usunięty
+    f_transform_shifted[crow - r_mask:crow + r_mask, ccol - r_mask:ccol + r_mask] = 0
+
+    # Wykonaj odwrotną transformatę Fouriera
+    f_transform_shifted_inv = np.fft.ifftshift(f_transform_shifted)
+    denoised_channel = np.fft.ifft2(f_transform_shifted_inv).real
+
+    return denoised_channel
+
+def denoise_color_image(image):
+    # Podziel obraz na trzy kanały kolorów
+    b, g, r = cv2.split(image)
+
+    # Odszumianie dla każdego kanału
+    denoised_b = denoise_channel(b)
+    denoised_g = denoise_channel(g)
+    denoised_r = denoise_channel(r)
+
+    denoised_image = cv2.merge([denoised_b, denoised_g, denoised_r])
+
+    return denoised_image
+
+# Funkcja odszumiająca przez rozmycie Gaussowskie
+def denoise_gaussian(image, kernel_size):
+    return cv2.GaussianBlur(image, (kernel_size, kernel_size), 0)
+
+
+color_image = cv2.imread("r"C:\Users\olawe\OneDrive\Obrazy\kot2.jpg")
+
+
+denoised_image_fourier = denoise_color_image(color_image)
+
+kernel_size_gaussian = 5
+denoised_image_gaussian = denoise_gaussian(color_image, kernel_size_gaussian)
+
+
+plt.subplot(131), plt.imshow(cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)), plt.title('Original Image')
+plt.subplot(132), plt.imshow(cv2.cvtColor(denoised_image_fourier.astype(np.uint8), cv2.COLOR_BGR2RGB)), plt.title('Denoised Fourier')
+plt.subplot(133), plt.imshow(cv2.cvtColor(denoised_image_gaussian, cv2.COLOR_BGR2RGB)), plt.title('Denoised Gaussian')
+plt.show()
+
+
+
+
+
+
+#Zaimplementować algorytm kompresji stratnej korzystający z transformacji Fouriera dla obrazow szarych
+
+
+
+import cv2
+import numpy as np
+from matplotlib import pyplot as plt
+
+def compress_gray_image(image_path, compression_ratio):
+
+    gray_image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+
+    # transformata Fouriera
+    f_transform = np.fft.fft2(gray_image)
+    f_transform_shifted = np.fft.fftshift(f_transform)
+
+    #  kwantyzacja na współczynnikach
+    threshold = np.max(np.abs(f_transform_shifted)) * compression_ratio
+    f_transform_shifted_quantized = np.where(np.abs(f_transform_shifted) > threshold, f_transform_shifted, 0)
+
+    # odwrotna transformatę Fouriera
+    f_transform_quantized = np.fft.ifftshift(f_transform_shifted_quantized)
+    compressed_image = np.fft.ifft2(f_transform_quantized).real
+
+    # Przekształcenie do zakresu 0-255
+    compressed_image = np.uint8(np.clip(compressed_image, 0, 255))
+
+    return compressed_image
+
+
+image_path = "r"C:\Users\olawe\OneDrive\Obrazy\kot1.jpg"
+
+# Współczynnik kompresji (wartość pomiędzy 0 a 1, gdzie 0 to brak kompresji, a 1 to pełna kompresja)
+compression_ratio = 0.1
+
+
+compressed_image = compress_gray_image(image_path, compression_ratio)
+
+plt.subplot(121), plt.imshow(cv2.imread(image_path, cv2.IMREAD_GRAYSCALE), cmap='gray'), plt.title('Original Image')
+plt.subplot(122), plt.imshow(compressed_image, cmap='gray'), plt.title('Compressed Image')
+plt.show()
